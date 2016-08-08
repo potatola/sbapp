@@ -8,6 +8,7 @@ import time
 import sqlite3
 from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash, jsonify
+from werkzeug.utils import secure_filename
 
 # create our little application :)
 app = Flask(__name__)
@@ -18,7 +19,8 @@ app.config.update(dict(
     DATABASE=os.path.join(app.root_path, 'DATABASE.db'),
     SECRET_KEY='development key',
     USERNAME='admin',
-    PASSWORD='default'
+    PASSWORD='default',
+    IMAGE_FOLDER='images'
 ))
 app.config.from_envvar('FLASKR_SETTINGS', silent=True)
 
@@ -97,6 +99,27 @@ def add_account():
         return fail(str(e))
     return success(account)
 
+@app.route('/sbapp/1.0/login', methods=['POST'])
+def login():
+    f = request.form
+    try:
+        account = query_db('select * from accounts where username=? and password=?', [f['username'], f['password']], one=True)
+        if not account:
+            return fail("用户名或密码错误！")
+        activity = query_db('select activities.aid, activities.title from user_activity_join, activities'\
+            'where user_activity_join.uid=? && user_activity_join.aid=activities.aid', [account['uid']],\
+            one=True)
+        if activity is not None:
+            account['aid'] = activity['aid']
+            account['title'] = activity['title']
+    except Exception, e:
+        return fail(str(e))
+    if not account:
+        return fail("用户名或密码错误！")
+    return success(account)
+
+
+### activity management
 
 @app.route('/sbapp/1.0/activities')
 def show_activities():
@@ -128,21 +151,36 @@ def join_activity():
         if(query_db('select * from user_activity_join where uid=%s and aid=%s' % (f['uid'], f['aid']),\
             one=True) is not None):
             return fail("Already in activity")
+        db.execute('delete from user_activity_join where uid=?', [f['uid']])
+        db.commit()
         db.execute('insert into user_activity_join (uid, aid, time, operation, op_time) \
             values (?,?,?,?,?)', [f['uid'], f['aid'], time.time(), 1, time.time()])
         db.commit()
+        activity = query_db('select * from activities where aid=?', [f['aid']], one=True)
     except Exception, e:
         return fail(str(e))
-    return success("Request sent")
+    return success(activity)
 
+
+@app.route('/sbapp/1.0/get_user_activity', methods=['POST'])
+def get_user_activity():
+    f = request.form
+    try:
+        activity = query_db('select * from user_activity_join where uid=%s' % (f['uid']), one=True)
+        return success(activity)
+    except Exception, e:
+        return fail(str(e))
+
+
+### acts management
 
 @app.route('/sbapp/1.0/act_activity', methods=['POST'])
 def act_activity():
     db = get_db()
     f = request.form
     try:
-        db.execute('insert into user_activity_act (uid,aid,time,act,location,content) \
-            values (?,?,?,?,?,?)', [f['uid'],f['aid'],time.time(),f['act'],f['location'],f['content']])
+        db.execute('insert into user_activity_act (uid,username,aid,time,act,location,latitude,longitude,content) \
+            values (?,?,?,?,?,?,?,?,?)', [f['uid'],f['username'],f['aid'],time.time(),f['act'],f['location'],f['latitude'],f['longitude'],f['content']])
         db.commit()
     except Exception, e:
         return fail(str(e))
@@ -157,6 +195,18 @@ def get_acts():
     except Exception, e:
         return fail(str(e))
     return success(acts)
+
+
+def allowed_image(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1] in set(['png', 'jpg', 'jpeg', 'gif'])
+
+
+@app.route('/sbapp/1.0/upload_image', methods=['POST'])
+def upload_image():
+    f = request.form
+    print str(f)
+    return success(str(f))
 
 
 if __name__ == '__main__':

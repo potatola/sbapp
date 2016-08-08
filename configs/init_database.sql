@@ -20,6 +20,7 @@ create table activities (
 
 drop table if exists user_activity_join;
 create table user_activity_join (
+    id integer primary key autoincrement,
     uid integer,
     aid integer,
     time numeric,
@@ -29,10 +30,14 @@ create table user_activity_join (
 
 drop table if exists user_activity_act;
 create table user_activity_act (
+    actid integer primary key autoincrement,
     uid integer,
+    username text,
     aid integer,
     time numeric,
     act numeric,
     location string,
+    latitude numeric,
+    longitude numeric,
     content string
 );
