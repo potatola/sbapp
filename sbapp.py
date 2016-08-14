@@ -107,7 +107,7 @@ def login():
         if not account:
             return fail("用户名或密码错误！")
         activity = query_db('select activities.aid, activities.title from user_activity_join, activities'\
-            'where user_activity_join.uid=? && user_activity_join.aid=activities.aid', [account['uid']],\
+            ' where user_activity_join.uid=? and user_activity_join.aid=activities.aid', [account['uid']],\
             one=True)
         if activity is not None:
             account['aid'] = activity['aid']
@@ -205,8 +205,9 @@ def allowed_image(filename):
 @app.route('/sbapp/1.0/upload_image', methods=['POST'])
 def upload_image():
     f = request.form
-    print str(f)
-    return success(str(f))
+    im = request.files['userfile']
+    im.save(os.path.join(app.config['IMAGE_FOLDER'], im.filename))
+    return success("success")
 
 
 if __name__ == '__main__':
