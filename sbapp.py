@@ -205,9 +205,12 @@ def allowed_image(filename):
 @app.route('/sbapp/1.0/upload_image', methods=['POST'])
 def upload_image():
     f = request.form
-    im = request.files['userfile']
-    im.save(os.path.join(app.config['IMAGE_FOLDER'], im.filename))
-    return success("success")
+    try:
+        im = request.files['userfile']
+        im.save(os.path.join(app.config['IMAGE_FOLDER'], im.filename))
+        return success(im.filename)
+    except Exception, e:
+        return fail(str(e))
 
 
 if __name__ == '__main__':
